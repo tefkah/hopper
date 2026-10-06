@@ -1,6 +1,6 @@
-import { execFile } from 'node:child_process'
-import { access, constants, stat } from 'node:fs/promises'
-import { delimiter, join } from 'node:path'
+import { execFile, spawn } from 'node:child_process'
+import { access, constants, mkdir, rm, stat } from 'node:fs/promises'
+import { delimiter, dirname, join } from 'node:path'
 
 import {
   ChangesError,
@@ -8,7 +8,7 @@ import {
   editedHere,
   exArg,
   fillCommand,
-  findChanges,
+  firstChanged,
   needsSides,
   readWorked,
   workedIn,
@@ -92,13 +92,55 @@ export const ghosttyArgs = (dir: string, nvim: string, command: string, path: st
 
 export type Where = 'server' | 'ghostty' | 'here'
 
+// Where `hopper nvim` listens, and so where d looks first when config.toml names no socket.
+export const NVIM_SERVER_DEFAULT = '~/.cache/hopper/nvim.sock'
+
+// `hopper nvim [args]`: nvim, listening where d looks, so what d opens comes to it as a new tab.
+// A socket left by an nvim that quit is cleared first; with another one still listening there,
+// this one runs without listening, and says so. nvim's own exit code.
+export async function nvimListening(
+  args: string[],
+  server: string | undefined,
+  o: { run?: Run; env?: NodeJS.ProcessEnv; say?: (s: string) => void } = {},
+): Promise<number> {
+  const exec = o.run ?? run
+  const say = o.say ?? ((s: string) => console.error(s))
+  const nvim = await findNvim(o.env)
+  if (!nvim) {
+    say('nvim isn’t on the PATH.')
+    return 1
+  }
+  const sock = expandHome(server ?? NVIM_SERVER_DEFAULT)
+  let listen = true
+  const there = await access(sock).then(
+    () => true,
+    () => false,
+  )
+  if (there) {
+    const alive = await exec(nvim, ['--server', sock, '--remote-expr', '1'], { timeout: 2000 })
+    if (alive.code === 0 && alive.stdout.trim() === '1') {
+      say(`Another nvim already listens at ${tildify(sock)}: d keeps opening there.`)
+      listen = false
+    } else await rm(sock, { force: true })
+  } else await mkdir(dirname(sock), { recursive: true })
+  return new Promise((resolve) => {
+    const child = spawn(nvim, [...(listen ? ['--listen', sock] : []), ...args], {
+      stdio: 'inherit',
+    })
+    child.on('exit', (code) => resolve(code ?? 1))
+    child.on('error', () => resolve(1))
+  })
+}
+
 export type OpenOpts = {
   dir: string
   // An Ex command, run in dir.
   command: string
   nvim: string
-  // config.toml's nvim_server: a socket a running nvim listens on.
+  // config.toml's nvim_server, else NVIM_SERVER_DEFAULT: a socket a running nvim listens on.
   server?: string | undefined
+  // The default socket, not one config.toml names: nobody listening there is no news.
+  optional?: boolean
   // Whether a Ghostty window can be had: macOS, with Hopper running in Ghostty.
   ghostty: boolean
   env?: NodeJS.ProcessEnv
@@ -125,7 +167,7 @@ export async function openNvim(o: OpenOpts): Promise<{ where: Where; note?: stri
       ])
       if (sent.code === 0) return { where: 'server' }
       notes.push(`nvim at ${tildify(sock)} didn't take it`)
-    } else notes.push(`no nvim at ${tildify(sock)}`)
+    } else if (!o.optional) notes.push(`no nvim at ${tildify(sock)}`)
   }
   if (o.ghostty) {
     const r = await exec('osascript', ghosttyArgs(o.dir, o.nvim, o.command, env['PATH'] ?? ''))
@@ -151,6 +193,7 @@ export async function openChanges(o: {
   cwd: string
   template?: string | undefined
   server?: string | undefined
+  optional?: boolean
   ghostty: boolean
   // Where {left} and {right} are made, the conversation's own folder.
   sides: string
@@ -161,8 +204,8 @@ export async function openChanges(o: {
 }): Promise<string> {
   try {
     const worked = o.transcript ? await readWorked(o.transcript) : { cwd: null, edited: [] }
-    const dir = await workedIn(worked, o.cwd, o.git)
-    const changes = await findChanges(dir, o.git)
+    const changes = await firstChanged(await workedIn(worked, o.cwd, o.git), o.git)
+    const dir = changes.dir
     const what = `${tildify(dir)}${changes.branch ? ` (${changes.branch})` : ''}`
     if (!changes.files.length) return `Nothing changed in ${what}, ${changes.since}.`
     const nvim = await findNvim(o.env)
@@ -179,6 +222,7 @@ export async function openChanges(o: {
       command,
       nvim,
       server: o.server,
+      ...(o.optional ? { optional: true } : {}),
       ghostty: o.ghostty,
       ...(o.env ? { env: o.env } : {}),
       ...(o.run ? { run: o.run } : {}),

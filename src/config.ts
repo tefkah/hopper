@@ -103,10 +103,10 @@ home = "~/hopper"
 # {files} the files the conversation edited itself. Not set, nvim's own DiffTool (0.12 and
 # later, no plugin). With diffview.nvim: diff_command = "DiffviewOpen {base}".
 # diff_command = "packadd nvim.difftool | DiffTool {left} {right}"
-# A running nvim to open it in, as a new tab: one started with --listen on this socket. Not set,
-# or not answering, it opens in a new Ghostty window (when Hopper runs in Ghostty on macOS),
-# else in Hopper's own terminal until nvim quits.
-# nvim_server = "~/.cache/nvim/hopper.sock"
+# A running nvim to open it in, as a new tab: one listening on this socket, which is what
+# hopper nvim starts. With none listening, it opens in a new Ghostty window (when Hopper runs in
+# Ghostty on macOS), else in Hopper's own terminal until nvim quits.
+# nvim_server = "~/.cache/hopper/nvim.sock"
 
 # Overnight: drafts queued for tonight start inside this window, and one night may use up to
 # night_budget points of an account's weekly limit, keeping the last reserve points for the day.

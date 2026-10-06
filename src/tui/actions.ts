@@ -21,7 +21,7 @@ import { when } from '../format.ts'
 import { readIfThere } from '../fsutil.ts'
 import { setHeld } from '../held.ts'
 import { draftSessionId, routineSessionId, withDone, type Item } from '../model.ts'
-import { inGhostty, openChanges as openChangesIn } from '../nvim.ts'
+import { inGhostty, NVIM_SERVER_DEFAULT, openChanges as openChangesIn } from '../nvim.ts'
 import { expandHome, isWithin, tildify } from '../paths.ts'
 import { hopperPrompt } from '../prompts.ts'
 import {
@@ -389,7 +389,8 @@ export function makeActions(ctx: AppCtx) {
         : null,
       cwd: item.cwd,
       template: config.diffCommand,
-      server: config.nvimServer,
+      server: config.nvimServer ?? NVIM_SERVER_DEFAULT,
+      optional: !config.nvimServer,
       ghostty: inGhostty(),
       sides: join(tmpdir(), 'hopper-changes', item.sessionId),
       here: async (nvim, args, dir) => {

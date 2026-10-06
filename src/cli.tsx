@@ -31,6 +31,7 @@ import { ago, resetShort, when } from './format.ts'
 import { writeGuide } from './guide.ts'
 import { initHome, loadProjects } from './home.ts'
 import { gather, OTHER } from './model.ts'
+import { nvimListening } from './nvim.ts'
 import { configPath, tildify } from './paths.ts'
 import { hopperPrompt } from './prompts.ts'
 import { listRoutines, loadRoutine, nextRun, runRoutine, removeLaunchd } from './routines/index.ts'
@@ -57,6 +58,8 @@ const HELP = `hopper: toss work in the hopper, hop from item to item.
   hopper routine install <template> [--name n] [--project key] [--schedule "…"]
                    [--check "cmd"] [--enable]   add one (paused unless --enable)
   hopper dispatch [--json]               start queued drafts that are ready now
+  hopper nvim [args…]    nvim, listening where d in the app opens a conversation's changes
+                         (as a new tab, rather than in a window of its own)
   hopper version         which Hopper this is (also --version)
   hopper help            this
 
@@ -338,6 +341,8 @@ try {
   else if (cmd === 'draft') await draft(rest[0], rest.slice(1))
   else if (cmd === 'routine') await routine(rest[0], rest.slice(1))
   else if (cmd === 'dispatch') await dispatchCmd(rest)
+  else if (cmd === 'nvim')
+    process.exitCode = await nvimListening(rest, (await loadConfig())?.nvimServer)
   else if (cmd === 'version' || cmd === '--version' || cmd === '-v') console.log(version())
   else if (cmd === 'help' || cmd === '--help' || cmd === '-h') console.log(HELP)
   else {

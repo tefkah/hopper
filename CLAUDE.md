@@ -52,8 +52,11 @@ where they are.
   `<Transform>` can't hold boxes, so this leans on Ink internals: check it after an Ink upgrade
   (`test/dim.test.tsx`).
 - **`d` (ctrl+\ inside one) opens a conversation's changes in nvim** (`src/changes.ts` finds them, `src/nvim.ts`
-  opens them). The repository is where most of its edits are, from its transcript, else its
-  newest `cwd`; a session in a meta repo often cds back before it stops. The Ghostty window is
+  opens them). The repositories it edited in, most edits first, then its newest `cwd`, and the
+  first of those with changes wins: a session in a meta repo often cds back before it stops, and
+  one in a worktree commits its planning edits in the meta repo. A running nvim gets it as a tab
+  when one listens on `nvim_server` (default `~/.cache/hopper/nvim.sock`, where `hopper nvim`
+  listens); a missing default socket is no news. The Ghostty window is
   made through Ghostty's AppleScript (1.3+), which runs the command without my shell, so nvim
   goes by full path and PATH is passed along. Everything that runs a program is injected in tests.
 - **Usage comes from `claude -p /usage`**, which is answered locally at no cost and refreshes the

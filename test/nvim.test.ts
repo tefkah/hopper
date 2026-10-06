@@ -79,6 +79,19 @@ describe('openNvim', () => {
     ])
   })
 
+  it('says nothing of the default socket when no nvim listens there', async () => {
+    const { run } = fakeRun((_, args) => (args.includes('--remote-expr') ? { code: 1 } : {}))
+    const r = await openNvim({
+      ...base,
+      server: '/tmp/n.sock',
+      optional: true,
+      ghostty: true,
+      run,
+      here: here().here,
+    })
+    expect(r).toEqual({ where: 'ghostty' })
+  })
+
   it('runs nvim in place off Ghostty, or when Ghostty says no', async () => {
     const h = here()
     expect(await openNvim({ ...base, ghostty: false, run: fakeRun().run, here: h.here })).toEqual({

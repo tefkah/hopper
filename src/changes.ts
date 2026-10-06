@@ -105,12 +105,16 @@ const isDir = (p: string) =>
 
 const topOf = async (run: Git, dir: string) => gitOr(run, dir, ['rev-parse', '--show-toplevel'])
 
-// The repository to show: the one it edited the most files in, the newest on a tie, else where
-// the session last was. Usually they're the same; they differ for a session in a meta repo that
-// works on a project's worktree by its path, or that cds back before it stops, and the one or two
-// planning files it keeps in the meta repo don't outweigh the code. Throws when the folder is
-// gone or isn't in git.
-export async function workedIn(worked: Worked, started: string, run: Git = git): Promise<string> {
+// The repositories it worked in, the likeliest first: the ones it edited files in, most files
+// first and the newest on a tie, then where the session last was. Usually they're the same; they
+// differ for a session in a meta repo that works on a project's worktree by its path, or that cds
+// back before it stops, or one in a worktree that only edits planning files elsewhere. Throws when
+// none is left: the folder is gone or isn't in git.
+export async function workedIn(
+  worked: Worked,
+  started: string,
+  run: Git = git,
+): Promise<string[]> {
   const cwd = worked.cwd ?? started
   const here = (await isDir(cwd)) ? await topOf(run, cwd) : null
   const counts = new Map<string, { n: number; last: number }>()
@@ -125,12 +129,12 @@ export async function workedIn(worked: Worked, started: string, run: Git = git):
     if (!top) continue
     counts.set(top, { n: (counts.get(top)?.n ?? 0) + 1, last: i })
   }
-  const best = [...counts].sort(([, a], [, b]) => b.n - a.n || b.last - a.last)[0]
-  if (best) return best[0]
+  const ranked = [...counts].sort(([, a], [, b]) => b.n - a.n || b.last - a.last).map(([t]) => t)
+  if (ranked.length) return here && !ranked.includes(here) ? [...ranked, here] : ranked
   const newest = worked.edited.at(-1)
   if (newest && !(await isDir(dirname(newest))))
     throw new ChangesError(`${tildify(dirname(newest))} is gone: its worktree was removed?`)
-  if (here) return here
+  if (here) return [here]
   if (!(await isDir(cwd)))
     throw new ChangesError(`${tildify(cwd)} is gone: its worktree was removed?`)
   throw new ChangesError(`${tildify(cwd)} isn't in a git repository.`)
@@ -212,6 +216,21 @@ export async function findChanges(dir: string, run: Git = git): Promise<Changes>
     .filter(Boolean)
     .map((path) => ({ path, status: 'A' as const }))
   return { dir, base, since, branch, files: [...tracked, ...untracked] }
+}
+
+// The first of the places it worked that has changes to show, else what the likeliest one has
+// (nothing), to say so. A meta repo whose planning edits are committed gives way to the worktree.
+export async function firstChanged(dirs: string[], run: Git = git): Promise<Changes> {
+  let first: Changes | null = null
+  for (const dir of dirs) {
+    const c = await findChanges(dir, run).catch((e: unknown) => {
+      if (dir === dirs[0]) throw e
+      return null
+    })
+    if (c?.files.length) return c
+    first ??= c
+  }
+  return first!
 }
 
 // The two sides as folders, for a diff tool that compares folders (nvim's :DiffTool): `left` holds

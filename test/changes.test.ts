@@ -11,6 +11,7 @@ import {
   exArg,
   fillCommand,
   findChanges,
+  firstChanged,
   needsSides,
   readWorked,
   workedIn,
@@ -102,13 +103,21 @@ describe('findChanges', () => {
 describe('workedIn', () => {
   it('is the repository of its newest folder, a subfolder or not', async () => {
     await mkdir(join(tree, 'src'), { recursive: true })
-    expect(await workedIn({ cwd: join(tree, 'src'), edited: [] }, repo)).toBe(tree)
+    expect(await workedIn({ cwd: join(tree, 'src'), edited: [] }, repo)).toEqual([tree])
     // No folder in the transcript: the one Claude reports.
-    expect(await workedIn({ cwd: null, edited: [] }, tree)).toBe(tree)
+    expect(await workedIn({ cwd: null, edited: [] }, tree)).toEqual([tree])
   })
   it('goes where most of its edits are, over a folder it went back to', async () => {
     const edited = [join(tree, 'a.txt'), join(tree, 'new file.txt'), join(repo, 'later.txt')]
-    expect(await workedIn({ cwd: repo, edited }, repo)).toBe(tree)
+    expect(await workedIn({ cwd: repo, edited }, repo)).toEqual([tree, repo])
+  })
+  it('shows the first place with changes: committed planning edits give way to the worktree', async () => {
+    const edited = [join(repo, 'later.txt'), join(repo, 'a.txt')]
+    const places = await workedIn({ cwd: tree, edited }, tree)
+    expect(places).toEqual([repo, tree])
+    expect((await firstChanged(places)).dir).toBe(tree)
+    // Nowhere with changes: the likeliest, to say nothing changed there.
+    expect((await firstChanged([repo])).files).toEqual([])
   })
   it('says when the folder is gone, or is not in git', async () => {
     const gone = join(repo, '.claude', 'worktrees', 'removed')

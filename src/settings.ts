@@ -5,6 +5,7 @@
 import { parse, stringify } from 'smol-toml'
 
 import { DIFF_DEFAULT } from './changes.ts'
+import { NVIM_SERVER_DEFAULT } from './nvim.ts'
 import { DEFAULT_SOUND, SOUNDS } from './chime.ts'
 import {
   CHOICE_DEFAULTS,
@@ -242,10 +243,10 @@ export function buildRows(
     kind: 'setting',
     id: 'general.nvim_server',
     label: 'nvim server',
-    value: config.nvimServer ?? '',
+    value: config.nvimServer ?? NVIM_SERVER_DEFAULT,
     raw: config.nvimServer ?? '',
     isSet: !!config.nvimServer,
-    help: 'A running nvim to open changes in, as a new tab: the socket it listens on (nvim --listen ~/.cache/nvim/hopper.sock). When it isn’t answering, d opens a new Ghostty window if Hopper runs in Ghostty on macOS, else nvim takes Hopper’s terminal until it quits.',
+    help: 'A running nvim to open changes in, as a new tab: the socket it listens on. hopper nvim starts one listening there. When none is, d opens a new Ghostty window if Hopper runs in Ghostty on macOS, else nvim takes Hopper’s terminal until it quits.',
     file: 'config',
     edit: { type: 'text' },
     target: { file: 'config', field: 'nvim_server' },
