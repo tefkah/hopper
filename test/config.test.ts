@@ -54,6 +54,15 @@ describe('settings', () => {
     for (const bad of ['81', '-1', '12.5', '"lots"', 'true'])
       expect(() => parseSettings(`home = "/h"\ndim = ${bad}`, '/c.toml')).toThrow(/dim/)
   })
+  it('reads what o runs in nvim and where, both optional', () => {
+    const s = parseSettings(
+      'home = "/h"\ndiff_command = "DiffviewOpen {base}"\nnvim_server = "~/n.sock"',
+      '/c.toml',
+    )
+    expect(s).toMatchObject({ diffCommand: 'DiffviewOpen {base}', nvimServer: '~/n.sock' })
+    expect(parseSettings('home = "/h"', '/c.toml').diffCommand).toBeUndefined()
+    expect(() => parseSettings('home = "/h"\nnvim_server = ""', '/c.toml')).toThrow(/nvim_server/)
+  })
   it('reads the model and effort, which are optional', () => {
     const s = parseSettings('home = "/h"\nmodel = "sonnet"\neffort = "low"', '/c.toml')
     expect(s.model).toBe('sonnet')

@@ -18,9 +18,16 @@ const keysOf = (h: Partial<Here>) => hereKeys({ ...base, ...h }).hints.map(([k])
 
 describe('hereKeys', () => {
   it('follows what is selected in the list', () => {
-    expect(keysOf({ item: conversation })).toEqual(['⏎ →', 'e', 'h', 'J K'])
-    expect(keysOf({ item: conversation, embedOpen: true })).toEqual(['⏎ →', 'i', 'e', 'h', 'J K'])
-    expect(keysOf({ focus: 'done', item: conversation })).toEqual(['⏎ →', 'e'])
+    expect(keysOf({ item: conversation })).toEqual(['⏎ →', 'e', 'd', 'h', 'J K'])
+    expect(keysOf({ item: conversation, embedOpen: true })).toEqual([
+      '⏎ →',
+      'i',
+      'e',
+      'd',
+      'h',
+      'J K',
+    ])
+    expect(keysOf({ focus: 'done', item: conversation })).toEqual(['⏎ →', 'e', 'd'])
   })
   it('offers h on what waits on you, off hold on what is held, and nothing on running work', () => {
     expect(hereKeys({ ...base, item: conversation }).hints).toContainEqual(['h', 'on hold'])
@@ -32,7 +39,14 @@ describe('hereKeys', () => {
     const row = (isProject: boolean) => ({ key: 'pm', isProject }) as Here['row']
     expect(keysOf({ focus: 'projects', row: row(true) })).toEqual(['⏎', 'tab', '↑↓', 'esc'])
     expect(keysOf({ focus: 'projects', row: row(false) })).toEqual(['⏎', '↑↓', 'esc'])
-    expect(keysOf({ item: conversation, scope: 'pm' })).toEqual(['⏎ →', 'e', 'h', 'J K', 'esc'])
+    expect(keysOf({ item: conversation, scope: 'pm' })).toEqual([
+      '⏎ →',
+      'e',
+      'd',
+      'h',
+      'J K',
+      'esc',
+    ])
     expect(keysOf({ item: conversation })).not.toContain('esc')
   })
   it("offers a report's conversation only while Claude still has it", () => {
@@ -49,6 +63,10 @@ describe('hereKeys', () => {
   })
   it('knows a conversation, a draft on the list, and writing one', () => {
     expect(hereKeys({ ...base, focus: 'session' }).label).toBe('a conversation')
+    expect(hereKeys({ ...base, focus: 'session' }).hints).toContainEqual([
+      'ctrl+\\',
+      'what it changed, in nvim',
+    ])
     const draft = { kind: 'draft', model: 'opus' } as Item
     const hints = hereKeys({ ...base, item: draft }).hints
     expect(hints).toContainEqual(['m', 'model: opus'])
@@ -69,7 +87,7 @@ describe('hereKeys', () => {
       barKeys({ ...base, item: conversation, embedOpen: true, summaryShown: false }).map(
         ([k]) => k,
       ),
-    ).toEqual(['⏎ →', 'i', 'e', 'h', 'J K'])
+    ).toEqual(['⏎ →', 'i', 'e', 'd', 'h', 'J K'])
     expect(barKeys({ ...base, focus: 'accounts' })).toEqual([])
   })
 })

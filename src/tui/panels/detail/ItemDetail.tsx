@@ -107,12 +107,20 @@ export function ConversationDetail(props: {
         <Keys
           keys={
             inList
-              ? [['⏎', 'open here'], ['e', 'archive'], ...holdKey(item), ['i', 'interrupt']]
+              ? [
+                  ['⏎', 'open here'],
+                  ['e', 'archive'],
+                  ...holdKey(item),
+                  ['i', 'interrupt'],
+                  ['d', 'what it changed'],
+                ]
               : [
                   ['⏎', 'open here'],
                   ['e', 'bring it back'],
+                  ['d', 'what it changed'],
                 ]
           }
+          width={width}
         />
       ) : (
         <Text color={T.dim}>Interactive session: switch to its terminal.</Text>

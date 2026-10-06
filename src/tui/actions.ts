@@ -1,5 +1,7 @@
 import { existsSync } from 'node:fs'
 import { mkdir } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 
 import { runInteractive, UntrustedError } from '../claude.ts'
 import { dispatchOnce } from '../commands.ts'
@@ -19,6 +21,7 @@ import { when } from '../format.ts'
 import { readIfThere } from '../fsutil.ts'
 import { setHeld } from '../held.ts'
 import { draftSessionId, routineSessionId, withDone, type Item } from '../model.ts'
+import { inGhostty, openChanges as openChangesIn } from '../nvim.ts'
 import { expandHome, isWithin, tildify } from '../paths.ts'
 import { hopperPrompt } from '../prompts.ts'
 import {
@@ -34,10 +37,11 @@ import {
 import { pickAccount } from '../routing.ts'
 import { markAllRead, markRead } from '../seen.ts'
 import { startDraft } from '../start.ts'
+import { findTranscript } from '../transcript.ts'
 import { copyToClipboard } from './clipboard.ts'
 import type { AppCtx } from './context.ts'
 import { admit, EmbeddedSession } from './embed.ts'
-import { editorName, editText } from './external.ts'
+import { editorName, editText, runInTerminal } from './external.ts'
 import { MOUSE_OFF, MOUSE_ON } from './mouse.ts'
 import { makeSettingsActions } from './settingsActions.ts'
 import {
@@ -373,6 +377,28 @@ export function makeActions(ctx: AppCtx) {
     await refresh(false)
   }
 
+  // d on a conversation, or ctrl+\ in one: what it changed, in nvim (nvim.ts says where).
+  const openChanges = async (item: Item | undefined) => {
+    if (!item || (item.kind !== 'background' && item.kind !== 'interactive'))
+      return setMessage('Only a conversation has changes to show.')
+    const account = config.accounts.find((a) => a.name === item.account)
+    setMessage('Looking at what it changed…')
+    const said = await openChangesIn({
+      transcript: account
+        ? await findTranscript(account.configDir, item.cwd, item.sessionId)
+        : null,
+      cwd: item.cwd,
+      template: config.diffCommand,
+      server: config.nvimServer,
+      ghostty: inGhostty(),
+      sides: join(tmpdir(), 'hopper-changes', item.sessionId),
+      here: async (nvim, args, dir) => {
+        await runInTerminal(ctx.suspendTerminal, nvim, args, { cwd: dir })
+      },
+    })
+    setMessage(said)
+  }
+
   // ⏎ on anything in the lists. A routine's goes into its details (enterRoutine).
   const open = (item: Item | undefined) => {
     if (!item) return
@@ -683,6 +709,7 @@ export function makeActions(ctx: AppCtx) {
     hold,
     enter,
     open,
+    openChanges,
     enterRoutine,
     editRoutine,
     writeOutside,

@@ -68,6 +68,7 @@ export const PANEL_KEYS: [label: string, hints: Hint[]][] = [
       ['⏎ →', 'open it, or go back in'],
       ['e', 'archive'],
       ['h', 'on hold, or off it (a reply takes it off too)'],
+      ['d ctrl+\\', 'what it changed, in nvim'],
       ['i', 'interrupt (sends esc)'],
       ['u', 'a draft: up next, tonight, off'],
       ['U', 'queue every proposal tonight'],
@@ -80,6 +81,7 @@ export const PANEL_KEYS: [label: string, hints: Hint[]][] = [
     [
       ['⏎ →', 'open it here'],
       ['e', 'bring it back'],
+      ['d ctrl+\\', 'what it changed, in nvim'],
     ],
   ],
   [
@@ -121,6 +123,7 @@ function settingKeys(row: Row | null): Hint[] {
 
 export const CONVERSATION_KEYS: Hint[] = [
   ['← ctrl+]', 'back to Hopper (it stays open)'],
+  ['ctrl+\\', 'what it changed, in nvim'],
   ['esc', "Claude's (menus, rewind)"],
   ['ctrl+c', 'interrupt Claude'],
 ]
@@ -262,7 +265,7 @@ export function hereKeys(h: Here): { label: string; hints: Hint[] } {
     else hints.push(['⏎ →', 'open it here'])
   }
   if (it && it.kind !== 'draft' && it.kind !== 'routine')
-    hints.push(['e', done ? 'bring it back' : 'archive'])
+    hints.push(['e', done ? 'bring it back' : 'archive'], ['d', 'what it changed, in nvim'])
   if (it && !done) hints.push(...holdKey(it))
   if (!done) hints.push(['J K', 'groups'])
   if (!done && h.scope) hints.push(['esc', 'every project'])
@@ -281,7 +284,7 @@ function summaryKeys(h: Here): Set<string> {
   if (h.focus === 'accounts') return new Set(PANEL_KEYS[3]![1].map(([k]) => k))
   if (h.item?.kind === 'routine') return new Set(routineKeys(h).flatMap(([k]) => k.split(' ')))
   if (h.item?.kind === 'draft') return new Set(draftKeys(h).flatMap(([k]) => k.split(' ')))
-  if (h.item?.id) return new Set(['⏎', 'e', 'i', ...holdKey(h.item).map(([k]) => k)])
+  if (h.item?.id) return new Set(['⏎', 'e', 'i', 'd', ...holdKey(h.item).map(([k]) => k)])
   return new Set()
 }
 

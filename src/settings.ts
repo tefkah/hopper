@@ -4,6 +4,7 @@
 
 import { parse, stringify } from 'smol-toml'
 
+import { DIFF_DEFAULT } from './changes.ts'
 import { DEFAULT_SOUND, SOUNDS } from './chime.ts'
 import {
   CHOICE_DEFAULTS,
@@ -90,6 +91,8 @@ export type Target =
         | 'model'
         | 'effort'
         | 'draft_editor'
+        | 'diff_command'
+        | 'nvim_server'
         | keyof typeof OVERNIGHT_KEYS
     }
   | { file: 'accounts'; account: string; field: 'label' | 'prefixes' | 'default' }
@@ -220,6 +223,32 @@ export function buildRows(
     file: 'config',
     edit: { type: 'choice', options: ['', 'external'], fallback: 'hopper' },
     target: { file: 'config', field: 'draft_editor' },
+  })
+
+  // d on a conversation: what it changed, in nvim.
+  rows.push({
+    kind: 'setting',
+    id: 'general.diff_command',
+    label: 'diff command',
+    value: config.diffCommand ?? DIFF_DEFAULT,
+    raw: config.diffCommand ?? '',
+    isSet: !!config.diffCommand,
+    help: 'What d on a conversation runs in nvim, in the folder it worked in, to show what it changed: everything since its branch left the default branch, committed or not (on the default branch itself, what isn’t committed). {base} is the commit compared with, {dir} the folder, {left} and {right} folders of the changed files before and now, {files} the files the conversation edited itself. The default is nvim’s own DiffTool (0.12 and later, no plugin); with diffview.nvim, DiffviewOpen {base}.',
+    file: 'config',
+    edit: { type: 'text' },
+    target: { file: 'config', field: 'diff_command' },
+  })
+  rows.push({
+    kind: 'setting',
+    id: 'general.nvim_server',
+    label: 'nvim server',
+    value: config.nvimServer ?? '',
+    raw: config.nvimServer ?? '',
+    isSet: !!config.nvimServer,
+    help: 'A running nvim to open changes in, as a new tab: the socket it listens on (nvim --listen ~/.cache/nvim/hopper.sock). When it isn’t answering, d opens a new Ghostty window if Hopper runs in Ghostty on macOS, else nvim takes Hopper’s terminal until it quits.',
+    file: 'config',
+    edit: { type: 'text' },
+    target: { file: 'config', field: 'nvim_server' },
   })
 
   rows.push({

@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process'
+import { spawn, type SpawnOptions } from 'node:child_process'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
@@ -16,15 +16,20 @@ export const editorName = () => basename(editorCommand().trim().split(/\s+/)[0] 
 
 const quoted = (path: string) => `'${path.replace(/'/g, `'\\''`)}'`
 
-// Hands the terminal to the editor on `path`, with Hopper suspended and mouse reporting off,
-// until it exits (the mouse codes only to a terminal: tests come through here too). Whether it
-// exited cleanly: vim's :cq, or an editor that wouldn't start, is not.
-export async function runEditor(suspend: Suspend, path: string): Promise<boolean> {
+// Hands Hopper's terminal to a program until it exits: Ink steps aside, and mouse reporting is
+// off so the program gets the terminal as it would from a shell (the mouse codes only to a
+// terminal: tests come through here too). Whether it exited cleanly.
+export async function runInTerminal(
+  suspend: Suspend,
+  cmd: string,
+  args: string[],
+  opts: Pick<SpawnOptions, 'cwd' | 'shell'> = {},
+): Promise<boolean> {
   let ok = false
   await suspend(async () => {
     if (process.stdout.isTTY) process.stdout.write(MOUSE_OFF)
     ok = await new Promise<boolean>((resolve) => {
-      const child = spawn(`${editorCommand()} ${quoted(path)}`, { stdio: 'inherit', shell: true })
+      const child = spawn(cmd, args, { ...opts, stdio: 'inherit' })
       child.on('exit', (code) => resolve(code === 0))
       child.on('error', () => resolve(false))
     })
@@ -32,6 +37,11 @@ export async function runEditor(suspend: Suspend, path: string): Promise<boolean
   })
   return ok
 }
+
+// The editor on `path`. Whether it exited cleanly: vim's :cq, or an editor that wouldn't start,
+// is not.
+export const runEditor = (suspend: Suspend, path: string): Promise<boolean> =>
+  runInTerminal(suspend, `${editorCommand()} ${quoted(path)}`, [], { shell: true })
 
 // Some text written in the editor: only the text, in a file of its own named `name`.md, so the
 // front matter around it on disk can't be broken. What was saved comes back without its trailing

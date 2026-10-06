@@ -82,6 +82,14 @@ to Claude, `esc` included. To come back to Hopper, press ← at Claude's empty p
 from anywhere. The conversation stays open, and ⏎ goes back in. Inside, ctrl+c interrupts Claude;
 from the list, `i` sends it an esc. `e` archives a conversation.
 
+`d` on a conversation (or in Archived), or ctrl+\ inside one, opens what it changed in nvim (the
+keyboard stays in the conversation): everything since its branch
+left the default branch, committed or not, in the worktree it moved into if it made one; on the
+default branch itself, what isn't committed. It runs nvim's own `:DiffTool` (nvim 0.12, no plugin);
+`diff_command` in `config.toml` changes that (`"DiffviewOpen {base}"` for diffview.nvim). It opens
+in a new tab of a running nvim when `nvim_server` names the socket it listens on, else in a new
+Ghostty window when Hopper runs in Ghostty on macOS, else in Hopper's own terminal until nvim quits.
+
 Ask Claude to file items and it will: it knows the project's `_open.md`. The first conversation in
 a new folder asks you to trust the folder once (`T`).
 

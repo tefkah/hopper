@@ -35,6 +35,13 @@ const isCtrlG = (input: string, key: Key) => (key.ctrl && input === 'g') || inpu
 export const AWAKE_ON = 'Keeping this Mac awake until z again. A closed lid still sleeps it.'
 export const AWAKE_OFF = 'This Mac can sleep again.'
 
+// ctrl+\, a conversation's changes, inside it or on its row. Claude Code binds nothing to it (it
+// warns it's the terminal's quit key), and Ink's raw mode keeps the terminal from making it
+// SIGQUIT. It arrives as the raw control character (0x1c), or with the kitty keyboard protocol
+// as ctrl and a backslash.
+export const isDiffKey = (input: string, key: Key) =>
+  input === '\u001c' || (key.ctrl && input === '\\')
+
 // Every key and mouse event, by what has the keyboard: the conversation, the input line, the
 // editor, Projects (which finds as you type), or the board. Built from the current context on every render.
 export function makeInput(ctx: AppCtx, act: Actions): Handler {
@@ -234,11 +241,13 @@ export function makeInput(ctx: AppCtx, act: Actions): Handler {
   // a Claude menu included. Both leave the conversation live; ⏎ goes back in. When the screen
   // shows the empty prompt, ← steps back at once and never reaches Claude; otherwise it goes
   // through, and Claude's agents screen (embed.ts) is the fallback. Claude's interrupt is
-  // ctrl+c, or i on the list.
+  // ctrl+c, or i on the list. ctrl+\ opens what it changed (d on the list) and the keys stay here.
   const onSession: Handler = (input, key) => {
     const { embed } = ctx
     // ctrl+] arrives as the raw control character (0x1d).
     if (!embed || input === '\u001d' || (key.ctrl && input === ']')) return act.go(ctx.returnTo)
+    if (isDiffKey(input, key))
+      return void act.openChanges(ctx.snap?.items.find((i) => i.id === embed.id))
     if (key.leftArrow && !key.meta && !key.shift && !key.ctrl && embed.atEmptyPrompt())
       return act.go(ctx.returnTo)
     if (ctx.pick) ctx.setPick(null)
@@ -497,6 +506,7 @@ export function makeInput(ctx: AppCtx, act: Actions): Handler {
     // e archives, as in Gmail, and in Archived brings it back.
     if (input === 'e') return void act.markDone(it, panel === 'work')
     if (input === 'h' && panel === 'work') return void act.hold(it)
+    if (input === 'd' || isDiffKey(input, key)) return void act.openChanges(it)
     if (input === 'g') return void act.dispatchNow()
   }
 

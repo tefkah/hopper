@@ -64,6 +64,10 @@ export type Config = {
   effort?: string
   // config.toml's draft_editor, when set: where drafts and routine prompts are written.
   draftEditor?: DraftEditor
+  // config.toml's diff_command and nvim_server, when set: what d on a conversation runs in nvim,
+  // and a running nvim to run it in. See changes.ts and nvim.ts.
+  diffCommand?: string
+  nvimServer?: string
   overnight: Overnight
   accounts: Account[]
   routes: Route[]
@@ -91,6 +95,18 @@ home = "~/hopper"
 # or "external": $VISUAL or $EDITOR (vi when neither is set), with Hopper suspended until it
 # exits. o on one opens it there either way. "hopper" when not set.
 # draft_editor = "external"
+
+# d on a conversation opens what it changed in nvim: every change since its branch left the
+# default branch, committed or not (on the default branch itself, what isn't committed).
+# diff_command is the nvim command it runs in the repository's folder; {base} is the commit
+# compared with, {dir} the folder, {left} and {right} folders of the files before and now,
+# {files} the files the conversation edited itself. Not set, nvim's own DiffTool (0.12 and
+# later, no plugin). With diffview.nvim: diff_command = "DiffviewOpen {base}".
+# diff_command = "packadd nvim.difftool | DiffTool {left} {right}"
+# A running nvim to open it in, as a new tab: one started with --listen on this socket. Not set,
+# or not answering, it opens in a new Ghostty window (when Hopper runs in Ghostty on macOS),
+# else in Hopper's own terminal until nvim quits.
+# nvim_server = "~/.cache/nvim/hopper.sock"
 
 # Overnight: drafts queued for tonight start inside this window, and one night may use up to
 # night_budget points of an account's weekly limit, keeping the last reserve points for the day.
@@ -169,6 +185,8 @@ export function parseSettings(
   model?: string
   effort?: string
   draftEditor?: DraftEditor
+  diffCommand?: string
+  nvimServer?: string
   overnight: Overnight
 } {
   let raw: Record<string, unknown>
@@ -208,12 +226,26 @@ export function parseSettings(
   const draftEditor = raw['draft_editor']
   if (draftEditor !== undefined && !DRAFT_EDITORS.includes(draftEditor as DraftEditor))
     throw new ConfigError(`${tildify(path)}: "draft_editor" is "hopper" or "external"`)
+  const nvim: { diffCommand?: string; nvimServer?: string } = {}
+  for (const [key, field] of [
+    ['diff_command', 'diffCommand'],
+    ['nvim_server', 'nvimServer'],
+  ] as const) {
+    const v = raw[key]
+    if (v === undefined) continue
+    if (typeof v !== 'string' || !v.trim())
+      throw new ConfigError(
+        `${tildify(path)}: "${key}" must be ${key === 'diff_command' ? 'an nvim command' : "a socket's path"}`,
+      )
+    nvim[field] = v.trim()
+  }
   return {
     home: expandHome(home),
     ...(sound ? { sound } : {}),
     ...(dim !== undefined ? { dim } : {}),
     ...choice,
     ...(draftEditor ? { draftEditor: draftEditor as DraftEditor } : {}),
+    ...nvim,
     overnight: parseOvernight(raw, tildify(path)),
   }
 }

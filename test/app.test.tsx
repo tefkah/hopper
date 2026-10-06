@@ -654,10 +654,32 @@ describe('conversations', () => {
     await press(stdin, '\r')
     await until(() => (lastFrame() ?? '').includes('you said: thanks'))
     expect(lastFrame()).toContain('you said: thanks')
+    // ctrl+\ is Hopper's, not Claude's: it opens what the conversation changed (this one runs
+    // in the home folder, which isn't in git, so it says so) and the keyboard stays here. With
+    // the kitty keyboard protocol it comes as ctrl and a backslash.
+    // Claude never sees it: what's typed after arrives clean.
+    for (const [n, ctrlBackslash] of ['\u001c', '\u001b[92;5u'].entries()) {
+      await press(stdin, ctrlBackslash)
+      await until(() => (lastFrame() ?? '').includes("isn't in a git"))
+      expect(lastFrame()).toContain("isn't in a git")
+      expect(focusOf()).toBe('session')
+      await press(stdin, `still here ${n}`)
+      await press(stdin, '\r')
+      await until(() => (lastFrame() ?? '').includes(`you said: still here ${n}`))
+      expect(lastFrame()).toContain(`you said: still here ${n}`)
+    }
     // ctrl+] comes back to Hopper and leaves the conversation live in the panel; ⏎ goes back in.
     await press(stdin, '\u001d')
     expect(focusOf()).toBe('conversations')
     expect(lastFrame()).toContain('you said: thanks')
+    // On its row, d does the same, and so does ctrl+\.
+    for (const diff of ['d', '\u001c']) {
+      await press(stdin, 'j')
+      expect(lastFrame()).not.toContain("isn't in a git")
+      await press(stdin, diff)
+      await until(() => (lastFrame() ?? '').includes("isn't in a git"))
+      expect(lastFrame()).toContain("isn't in a git")
+    }
     await press(stdin, '\r')
     expect(lastFrame()).toContain(' claude ')
     // Dragging across the conversation selects inside it and copies on release. At 100 columns
