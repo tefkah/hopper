@@ -98,6 +98,7 @@ export function ConversationDetail(props: {
           start, or started before it recorded both, Claude Code doesn't say. What it ran on is
           the full id from its transcript. */}
       {row('model', `${item.model ?? 'not known'} · ${item.effort ?? 'not known'}`)}
+      {item.worktree ? row('worktree', item.worktree) : null}
       {item.ranOn ? row('ran on', item.ranOn) : null}
       {item.routine ? row('routine', item.routine) : null}
       {item.result?.summary ? row('result', item.result.summary) : null}

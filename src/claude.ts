@@ -240,6 +240,8 @@ export function startBackground(
     systemPrompt?: string
     model?: string | undefined
     effort?: string | undefined
+    // Whether it enters a git worktree before it edits, or edits cwd in place.
+    worktree?: boolean | undefined
     // Folders outside cwd the session may use without asking (a routine's result folder).
     addDirs?: string[] | undefined
     // With nobody watching, never a mode that asks (see unattendedPermissions).
@@ -255,6 +257,11 @@ export function startBackground(
   for (const d of opts.addDirs ?? []) args.push('--add-dir', d)
   if (opts.model) args.push('--model', opts.model)
   if (opts.effort) args.push('--effort', opts.effort)
+  // Left off, a background session must enter a worktree before Claude lets it edit.
+  if (opts.worktree !== undefined) {
+    const bgIsolation = opts.worktree ? 'worktree' : 'none'
+    args.push('--settings', JSON.stringify({ worktree: { bgIsolation } }))
+  }
   if (opts.systemPrompt) args.push('--append-system-prompt', opts.systemPrompt)
   args.push(opts.prompt)
   return new Promise((resolve, reject) => {

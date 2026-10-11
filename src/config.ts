@@ -59,9 +59,10 @@ export type Config = {
   sound?: string
   // config.toml's dim, when set: how much darker a panel without the keys is drawn, in percent.
   dim?: number
-  // config.toml's model and effort, when set; see defaultsFor.
+  // config.toml's model, effort and worktree, when set; see defaultsFor.
   model?: string
   effort?: string
+  worktree?: string
   // config.toml's show_folders: Projects finds folders as well as projects. Off when not set.
   showFolders?: boolean
   // config.toml's check_updates = "no": a release copy doesn't ask whether there's a newer one.
@@ -96,6 +97,10 @@ home = "~/hopper"
 # Whether Hopper asks hopper.saltbark.com every few hours for a newer release, and says so at the
 # bottom right (V installs it). A copy built from source never asks. "yes" when not set.
 # check_updates = "no"
+
+# Whether a conversation you start works in its own git worktree ("yes") or edits the folder it
+# runs in ("no"). "no" when not set. Queued work and routines always get a worktree.
+# worktree = "no"
 
 # Overnight: drafts queued for tonight start inside this window, and one night may use up to
 # night_budget points of an account's weekly limit, keeping the last reserve points for the day.
@@ -169,6 +174,7 @@ export function parseSettings(
   dim?: number
   model?: string
   effort?: string
+  worktree?: string
   showFolders?: boolean
   checkUpdates?: false
   overnight: Overnight
@@ -197,14 +203,16 @@ export function parseSettings(
           : NaN
   if (dim !== undefined && (!Number.isInteger(dim) || dim < 0 || dim > DIM_MAX))
     throw new ConfigError(`${tildify(path)}: "dim" is a whole number from 0 to ${DIM_MAX}`)
-  const choice: { model?: string; effort?: string } = {}
-  for (const key of ['model', 'effort'] as const) {
-    const v = raw[key]
+  const choice: { model?: string; effort?: string; worktree?: string } = {}
+  for (const key of CHOICE_KEYS) {
+    const v = typeof raw[key] === 'boolean' ? (raw[key] ? 'yes' : 'no') : raw[key]
     if (v === undefined) continue
     if (typeof v !== 'string' || !v)
       throw new ConfigError(
         `${tildify(path)}: "${key}" must be a name like "${CHOICE_DEFAULTS[key]}"`,
       )
+    if (key === 'worktree' && !WORKTREES.includes(v as never))
+      throw new ConfigError(`${tildify(path)}: "worktree" is "yes" or "no"`)
     choice[key] = v
   }
   // "yes" or "no", as Hopper writes it, or a TOML boolean written by hand; undefined when not set.
@@ -228,28 +236,34 @@ export function parseSettings(
   }
 }
 
-// What a conversation starts with when it doesn't say. Hopper always passes a model and an
-// effort, so "default" names the same thing whichever login runs it, and can always be shown.
-export type Choice = { model: string; effort: string }
-export const CHOICE_DEFAULTS: Choice = { model: 'opus[1m]', effort: 'high' }
+// What a conversation starts with when it doesn't say. Hopper always passes a model, an effort
+// and whether to work in a worktree, so "default" names the same thing whichever login runs it,
+// and can always be shown.
+export type Choice = { model: string; effort: string; worktree: string }
+export const CHOICE_DEFAULTS: Choice = { model: 'opus[1m]', effort: 'high', worktree: 'no' }
+export const CHOICE_KEYS = ['model', 'effort', 'worktree'] as const
+type Own = { [K in keyof Choice]?: string | undefined }
+
+// Whether a conversation enters a git worktree before it edits. Claude Code makes a background
+// session do so unless its worktree.bgIsolation setting says otherwise (see startBackground).
+export const WORKTREES = ['yes', 'no'] as const
 
 // What a draft or routine in `project` gets for what it leaves unset: the project's own choice,
 // else config.toml's, else Hopper's.
-export function defaultsFor(
-  config: Pick<Config, 'model' | 'effort'>,
-  project?: { model?: string | undefined; effort?: string | undefined },
-): Choice {
+export function defaultsFor(config: Own, project?: Own): Choice {
   return {
     model: project?.model ?? config.model ?? CHOICE_DEFAULTS.model,
     effort: project?.effort ?? config.effort ?? CHOICE_DEFAULTS.effort,
+    worktree: project?.worktree ?? config.worktree ?? CHOICE_DEFAULTS.worktree,
   }
 }
 
 // What it actually runs with: its own choice where it made one, the defaults for the rest.
-export const chosen = (
-  own: { model?: string | undefined; effort?: string | undefined },
-  defaults: Choice,
-): Choice => ({ model: own.model ?? defaults.model, effort: own.effort ?? defaults.effort })
+export const chosen = (own: Own, defaults: Choice): Choice => ({
+  model: own.model ?? defaults.model,
+  effort: own.effort ?? defaults.effort,
+  worktree: own.worktree ?? defaults.worktree,
+})
 
 // A model or effort as shown: what was picked, or the default it falls back to, named.
 export const choiceText = (own: string | undefined, fallback: string) =>

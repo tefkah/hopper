@@ -3,10 +3,12 @@ import { join } from 'node:path'
 import { inTurn, readForChange, readIfThere, writeJson } from './fsutil.ts'
 
 // What Hopper knows about the conversations it started that Claude Code doesn't report: the model
-// and effort they started with, and the routine a run belongs to. Keyed by the short session id.
+// and effort they started with, whether in a worktree, and the routine a run belongs to. Keyed by
+// the short session id.
 export type ConversationMeta = {
   model?: string
   effort?: string
+  worktree?: boolean
   project: string
   routine?: string
   startedAt: number
@@ -46,6 +48,7 @@ export const recordConversation = (home: string, id: string, meta: ConversationM
 // The models and efforts a draft cycles through; undefined means Claude's own default.
 export const MODELS = [undefined, 'haiku', 'sonnet', 'opus', 'opus[1m]', 'fable'] as const
 export const EFFORTS = [undefined, 'low', 'medium', 'high'] as const
+export const WORKTREE_CHOICES = [undefined, 'yes', 'no'] as const
 
 export function nextOf<T>(list: readonly (T | undefined)[], current: T | undefined): T | undefined {
   const i = list.indexOf(current)

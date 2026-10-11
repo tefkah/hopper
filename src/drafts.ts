@@ -1,6 +1,7 @@
 import { readdir, rm, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 
+import { WORKTREES } from './config.ts'
 import { parseFrontmatter, serializeFrontmatter, timeField } from './frontmatter.ts'
 import { readIfThere, writeAtomic } from './fsutil.ts'
 
@@ -14,6 +15,8 @@ export type Draft = {
   updated: number
   model?: string
   effort?: string
+  // 'yes' to work in a git worktree, 'no' to edit the run folder in place. Queued, always a worktree.
+  worktree?: string
   // Up next: start on its own when an account has room ('now'), or only in the night window.
   // Queued work runs unattended. See dispatch.ts.
   queue?: Queue
@@ -46,6 +49,7 @@ export const serializeDraft = (d: Draft): string =>
       updated: new Date(d.updated).toISOString(),
       model: d.model,
       effort: d.effort,
+      worktree: d.worktree,
       queue: d.queue,
       after: d.after?.length ? d.after.join(', ') : undefined,
       done: d.done,
@@ -73,6 +77,7 @@ export function parseDraft(id: string, text: string, fileTime = 0): Draft | null
   }
   if (f['model']) draft.model = f['model']
   if (f['effort']) draft.effort = f['effort']
+  if (WORKTREES.includes(f['worktree'] as never)) draft.worktree = f['worktree']
   if (QUEUES.includes(f['queue'] as Queue)) draft.queue = f['queue'] as Queue
   const after = (f['after'] ?? '').split(/[,\s]+/).filter(Boolean)
   if (after.length) draft.after = after

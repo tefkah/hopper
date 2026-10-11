@@ -74,6 +74,11 @@ where they are.
   then `CHOICE_DEFAULTS`. Wherever a default applies it is shown by name (`choiceText`:
   "opus[1m] (default)"), never as a bare "default". A conversation's `ranOn` is the full model id
   its newest reply came from, read from its transcript (`src/transcript.ts`).
+- **Every conversation also says whether it works in a worktree** (`--settings` with Claude's
+  `worktree.bgIsolation`). Left off, Claude makes a background session enter a worktree before it
+  may edit anything. A draft's `worktree` (yes or no, `W`) falls back through `defaultsFor` like
+  model and effort, default no; queued work and routines always get one, since they run side by
+  side in one checkout.
 - **Unattended means a mode that never asks, and a result file.** Routine runs and anything
   `hopper dispatch` starts get `unattendedPermissions` (`src/claude.ts`): `--permission-mode
 auto`, except for Haiku, which has no auto mode (Claude falls back to asking, and the run

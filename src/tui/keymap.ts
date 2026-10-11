@@ -150,7 +150,12 @@ export const WRITING_KEYS: Hint[] = [
 
 // A draft's and a routine's keys, on its row in the list. The model and effort name what they
 // fall back to when it picks none; for the help screen, with nothing selected, Hopper's own.
-type Choices = { model?: string | undefined; effort?: string | undefined; defaults: Choice }
+type Choices = {
+  model?: string | undefined
+  effort?: string | undefined
+  worktree?: string | undefined
+  defaults: Choice
+}
 
 const QUEUE_HINT = {
   none: 'up next: when there is room',
@@ -170,6 +175,8 @@ export function draftKeys(
     ...(e.proposed ? [['U', 'queue every proposal tonight'] as Hint] : []),
     ['m', `model: ${choiceText(e.model, e.defaults.model)}`],
     ['E', `effort: ${choiceText(e.effort, e.defaults.effort)}`],
+    // Queued work always runs in a worktree, so the choice only counts when I start it.
+    ['W', `worktree: ${e.queue ? 'yes (up next)' : choiceText(e.worktree, e.defaults.worktree)}`],
     ['w', 'move to a project'],
     ['r', 'make it a routine'],
     ['y', 'copy'],

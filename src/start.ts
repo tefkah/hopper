@@ -18,7 +18,8 @@ export const guidePath = (home: string) => join(home, 'CLAUDE.md')
 
 // Starts a draft as a Claude Code background session in the project's run folder, records what
 // Claude Code won't report about it, and removes the draft. Unattended (the dispatcher starting
-// queued work) it runs in auto permission mode and writes a result file. Throws UntrustedError
+// queued work) it runs in auto permission mode, in a worktree whatever the draft says (runs
+// started together would otherwise edit the same checkout), and writes a result file. Throws UntrustedError
 // from startBackground for a folder Claude hasn't been told to trust.
 export async function startDraft(opts: {
   config: Config
@@ -36,7 +37,8 @@ export async function startDraft(opts: {
   const name = `${project.key} · ${first}`
   const result = unattended ? draftResultPath(home, d.id) : undefined
   if (result) await mkdir(resultsDir(home), { recursive: true })
-  const { model, effort } = chosen(d, defaultsFor(config, project))
+  const { model, effort, ...picked } = chosen(d, defaultsFor(config, project))
+  const worktree = unattended || picked.worktree === 'yes'
   const perms = result ? unattendedPermissions(model, [resultsDir(home)]) : undefined
   const systemPrompt = [
     hopperPrompt(project, { unattended, guide: guidePath(home) }),
@@ -60,6 +62,7 @@ export async function startDraft(opts: {
     systemPrompt,
     model,
     effort,
+    worktree,
     addDirs: [...(result ? [resultsDir(home)] : []), ...extraDirs(project)],
     ...perms,
   })
@@ -69,6 +72,7 @@ export async function startDraft(opts: {
     draft: d.id,
     model,
     effort,
+    worktree,
     ...(result ? { unattended: true, result } : {}),
     ...(d.depth ? { depth: d.depth } : {}),
     ...(d.queue ? { queue: d.queue } : {}),

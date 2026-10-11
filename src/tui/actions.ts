@@ -121,6 +121,7 @@ export function makeActions(ctx: AppCtx) {
       created: d.created,
       model: d.model,
       effort: d.effort,
+      worktree: d.worktree,
       extra: {
         ...(d.queue ? { queue: d.queue } : {}),
         ...(d.after ? { after: d.after } : {}),

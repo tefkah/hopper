@@ -105,7 +105,9 @@ and why not), conversations (group, project, model, ranOn: the full id its newes
 from, account, state, startedAt, activeAt: which lists sort by, when I last wrote to it while
 it works and when Claude stopped once it has, result), routines and recent runs, and the last dispatch. A draft's or routine's `model` and
 `effort` are null where it picks none; it then runs with `defaults`, the project's (on each
-project) or Hopper's (at the top).
+project) or Hopper's (at the top). So is a draft's `worktree` (`yes` to work in a git worktree,
+`no` to edit the run folder in place), which only counts when the person starts it: queued work
+and routines always get a worktree. A conversation's `worktree` is what it started with.
 `hopper status --json` adds accounts and usage.
 
 Groups a conversation can be in: `waiting` (on the person), `held` (waiting, but the person has

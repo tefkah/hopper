@@ -74,6 +74,9 @@ export type Item = Session & {
   // Recorded by Hopper when it started the conversation; for a routine, what its runs start with.
   model?: string
   effort?: string
+  // 'yes' to work in a git worktree, 'no' to edit its folder in place: what a conversation started
+  // with, or what a draft picked, like model and effort.
+  worktree?: string
   // The full id of the model its newest reply came from, read from its transcript, and when.
   ranOn?: string
   repliedAt?: number
@@ -286,6 +289,7 @@ export async function gather(
     const m = it.id ? meta[it.id] : undefined
     if (m?.model) it.model = m.model
     if (m?.effort) it.effort = m.effort
+    if (m?.worktree !== undefined) it.worktree = m.worktree ? 'yes' : 'no'
     if (m?.routine) it.routine = m.routine
     if (m?.draft) it.draft = m.draft
     if (m?.unattended) it.unattended = true
@@ -356,6 +360,7 @@ export async function gather(
     it.draft = d.id
     if (d.model) it.model = d.model
     if (d.effort) it.effort = d.effort
+    if (d.worktree) it.worktree = d.worktree
     if (d.queue) {
       it.queue = d.queue
       it.state = d.queue === 'night' ? 'tonight' : 'queued'

@@ -66,6 +66,8 @@ export type Editing = {
   // What it starts with; undefined is Claude's default.
   model?: string | undefined
   effort?: string | undefined
+  // A draft's 'yes' or 'no' to a worktree; undefined is the project's or Hopper's default.
+  worktree?: string | undefined
   // Set when this is a routine's prompt rather than a draft.
   routine?: { name: string; schedule: string; enabled: boolean; check?: string } | undefined
   // A draft's overnight fields, carried through the editor unchanged.
@@ -157,6 +159,7 @@ export const toDraft = (e: Editing, updated: number): Draft => ({
   updated,
   ...(e.model ? { model: e.model } : {}),
   ...(e.effort ? { effort: e.effort } : {}),
+  ...(e.worktree ? { worktree: e.worktree } : {}),
   ...e.extra,
 })
 

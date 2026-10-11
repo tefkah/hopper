@@ -3,6 +3,7 @@ import { dirname, join } from 'node:path'
 
 import { parse } from 'smol-toml'
 
+import { WORKTREES } from './config.ts'
 import { expandHome, isWithin } from './paths.ts'
 
 // A project Hopper knows about. Keys are folder-like: meta/inbox, bh/news/bulletin.
@@ -18,6 +19,7 @@ export type Project = {
   // What new conversations here start with, unless the draft says otherwise.
   model?: string
   effort?: string
+  worktree?: string
   // Set when the project came from a meta repo's registry: that repo's folder, and the key it
   // uses there (null for the meta repo itself). Its planning rules govern the open file.
   // `link` is the project's symlink inside the repo (projects/<key>), when `just link` made one.
@@ -86,6 +88,9 @@ export function parseProjects(text: string, home: string, imported: Project[] = 
     const project: Project = { ...base, key, path, runIn, openFile }
     if (typeof p['model'] === 'string' && p['model']) project.model = p['model']
     if (typeof p['effort'] === 'string' && p['effort']) project.effort = p['effort']
+    const worktree =
+      typeof p['worktree'] === 'boolean' ? (p['worktree'] ? 'yes' : 'no') : p['worktree']
+    if (WORKTREES.includes(worktree as never)) project.worktree = worktree as string
     return project
   })
   return [...own, ...imported.filter((p) => !seen.has(p.key))]

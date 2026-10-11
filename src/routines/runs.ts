@@ -263,6 +263,8 @@ export async function runRoutine(opts: {
       .join(' '),
     model,
     effort,
+    // Unattended, so never in the checkout something else may be editing.
+    worktree: true,
     // The result file sits outside the project; let the run write there without asking.
     // The whole routines folder, so routines can share what they remember (mail-brief's ledger).
     addDirs: [routinesDir(home), ...extraDirs(project), ...lookAcross(r, projects)],
@@ -276,6 +278,7 @@ export async function runRoutine(opts: {
     result,
     model,
     effort,
+    worktree: true,
   })
   await recordRun(home, {
     routine: r.name,
