@@ -200,6 +200,13 @@ async function tui() {
   // Real mouse events, so the wheel scrolls what's under it instead of sending arrow keys.
   process.stdout.write(MOUSE_ON)
   process.on('exit', () => process.stdout.write(MOUSE_OFF + TITLE_RESTORE))
+  // React's development build (`pnpm dev`, or dist/cli.js run without bin/hopper.js) records
+  // every render with performance.measure, and Node keeps every entry: an embedded conversation
+  // redrawing all day filled the heap. Nothing reads them, so they're dropped.
+  setInterval(() => {
+    performance.clearMeasures()
+    performance.clearMarks()
+  }, 60_000).unref()
   try {
     await app.waitUntilExit()
   } finally {
