@@ -1,4 +1,4 @@
-import { access, open, readdir, stat } from 'node:fs/promises'
+import { access, open, readdir, stat, type FileHandle } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 
@@ -57,8 +57,9 @@ export async function findTranscript(
   return null
 }
 
-// Replies are near the end; a long tool output can push the last one further back.
-const TAIL = 256 * 1024
+// Replies are near the end, so the file is read back from there a piece at a time: a long tool
+// output can push the last one further back, and a transcript can run past 100 MB.
+const CHUNK = 256 * 1024
 // A reply's model, written as JSON. Quotes inside a tool's output are escaped, so they don't match.
 const MODEL = /"model":"([^"]+)"/g
 // A message, mine or Claude's (a tool's result is written as one of mine), rather than an entry
@@ -100,6 +101,40 @@ function readLines(text: string): Transcript {
 
 const complete = (t: Transcript) => !!t.reply && t.activeAt !== null && t.promptedAt !== null
 
+// What `older` says, where `newer` (read from later in the file) says nothing.
+const fill = (newer: Transcript, older: Transcript | null): Transcript => ({
+  reply: newer.reply ?? older?.reply ?? null,
+  activeAt: newer.activeAt ?? older?.activeAt ?? null,
+  promptedAt: newer.promptedAt ?? older?.promptedAt ?? null,
+})
+
+// Reads back from `end` a chunk at a time until it knows all three, or reaches `floor`. A line
+// the chunk's start cuts through waits for the chunk before it. Only one chunk and the line
+// being finished are in memory, not the file: at startup every transcript is read at once.
+async function readBack(f: FileHandle, end: number, floor: number): Promise<Transcript> {
+  let found: Transcript = { reply: null, activeAt: null, promptedAt: null }
+  let cut: Buffer[] = []
+  while (end > floor && !complete(found)) {
+    const from = Math.max(floor, end - CHUNK)
+    const buf = Buffer.alloc(end - from)
+    await f.read(buf, 0, buf.length, from)
+    end = from
+    // At the start of the file the first line is whole. Anywhere else it's cut, and at the
+    // floor it began where the last read already looked, so it's left out.
+    const whole = from === 0
+    const nl = whole ? -1 : buf.indexOf(10)
+    if (!whole && nl === -1) {
+      if (from === floor) break
+      cut.unshift(buf)
+      continue
+    }
+    const text = Buffer.concat([buf.subarray(nl + 1), ...cut]).toString('utf8')
+    cut = whole ? [] : [buf.subarray(0, nl)]
+    found = fill(found, readLines(text))
+  }
+  return found
+}
+
 // Read again only when the file has changed, since every poll asks.
 const cache = new Map<string, { size: number; mtimeMs: number; read: Transcript }>()
 
@@ -112,22 +147,13 @@ export async function readTranscript(path: string): Promise<Transcript | null> {
   if (hit && hit.size === s.size && hit.mtimeMs === s.mtimeMs) return hit.read
   const f = await open(path, 'r')
   try {
-    const read = async (from: number) => {
-      const buf = Buffer.alloc(s.size - from)
-      await f.read(buf, 0, buf.length, from)
-      return buf.toString('utf8')
-    }
-    // A transcript only grows, so what an earlier read found still holds where the end has
-    // nothing newer: a long turn's tool output can push my prompt out of the tail, and reading
-    // the whole file on every poll while it works would be the cost of that.
-    const tail = readLines(await read(Math.max(0, s.size - TAIL)))
+    // A transcript only grows, so what an earlier read found still holds where what was added
+    // since says nothing newer: a long turn's tool output can push my prompt far back, and
+    // reading that far on every poll while it works would be the cost of that. The read goes a
+    // chunk past where the last one ended, for the line that was being written then.
     const before = hit && s.size >= hit.size ? hit.read : null
-    let found: Transcript = {
-      reply: tail.reply ?? before?.reply ?? null,
-      activeAt: tail.activeAt ?? before?.activeAt ?? null,
-      promptedAt: tail.promptedAt ?? before?.promptedAt ?? null,
-    }
-    if (!complete(found) && s.size > TAIL) found = readLines(await read(0))
+    const floor = before && hit ? Math.max(0, hit.size - CHUNK) : 0
+    const found = fill(await readBack(f, s.size, floor), before)
     cache.set(path, { size: s.size, mtimeMs: s.mtimeMs, read: found })
     return found
   } finally {

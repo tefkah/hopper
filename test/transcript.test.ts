@@ -126,6 +126,27 @@ describe('transcripts', () => {
       promptedAt: Date.parse('2026-09-30T09:00:00Z'),
     })
   })
+  it('reads back from the end of a long one, across lines longer than what it reads at once', async () => {
+    const path = join(await mkdtemp(join(tmpdir(), 'hopper-transcript-')), 's.jsonl')
+    const line = (o: object) => JSON.stringify(o) + '\n'
+    // A line in every message and a few the pieces cut through, some longer than a piece.
+    let text = line({ type: 'user', message: {}, timestamp: '2026-09-30T08:00:00Z' })
+    text += line({ type: 'user', message: { content: 'é' }, timestamp: '2026-09-30T09:00:00Z' })
+    text += reply('claude-opus-5-5')
+    for (const [i, size] of [100, 700, 90, 300, 2].entries())
+      text += line({
+        type: 'user',
+        message: { content: [{ type: 'tool_result', content: 'ü'.repeat(size * 512) }] },
+        toolUseResult: {},
+        timestamp: `2026-09-30T10:0${i}:00Z`,
+      })
+    await writeFile(path, text)
+    expect(await readTranscript(path)).toEqual({
+      reply: { model: 'claude-opus-5-5', at: null },
+      activeAt: Date.parse('2026-09-30T10:04:00Z'),
+      promptedAt: Date.parse('2026-09-30T09:00:00Z'),
+    })
+  })
   it('finds one that moved to a worktree’s folder', async () => {
     const login = await mkdtemp(join(tmpdir(), 'hopper-login-'))
     const moved = join(login, 'projects', '-w--claude-worktrees-x')
