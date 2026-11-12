@@ -174,6 +174,7 @@ describe('sources', () => {
     expect(hopperPrompt(hopper)).toContain(`${meta}/CLAUDE.md`)
     expect(hopperPrompt(hopper)).toContain(`code is in ${hopper.path}`)
     expect(hopperPrompt(hopper)).not.toContain('"## Open"')
+    expect(hopperPrompt(hopper)).toContain('update the open file under those rules before you stop')
     // Pointed at the agents' guide, which a conversation in the home folder loads by itself.
     const guide = join(home, 'CLAUDE.md')
     expect(hopperPrompt(hopper, { guide })).toContain(`How Hopper works, for agents`)

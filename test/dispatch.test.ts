@@ -329,6 +329,8 @@ describe('unattended prompts', () => {
     const project: Project = { key: 'meta/inbox', path: '/h/p', runIn: '/h', openFile: '/h/o.md' }
     expect(hopperPrompt(project)).toMatch(/talking it through/)
     expect(hopperPrompt(project, { unattended: true })).not.toMatch(/talking it through/)
+    expect(hopperPrompt(project)).toMatch(/remove it when it is done/)
+    expect(hopperPrompt(project, { unattended: true })).not.toMatch(/before you stop/)
   })
 })
 

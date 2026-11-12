@@ -3,7 +3,8 @@ import { dirname } from 'node:path'
 import type { Project } from './home.ts'
 
 // What Claude is told about the project when Hopper starts a conversation in it.
-// Unattended, the closing "talk it through first" is left off: nobody is there to talk to.
+// Unattended, the closing "talk it through first" is left off: nobody is there to talk to. So is
+// keeping the open file current, since unattended runs never edit planning files.
 // `guide` is the agents' guide in the home folder; a conversation running there loads it as its
 // CLAUDE.md, so only one running elsewhere is pointed at it.
 export function hopperPrompt(
@@ -21,6 +22,14 @@ export function hopperPrompt(
           'Read it when the person asks for something in Hopper.',
         ]
       : []
+  // People end a conversation without asking for the cleanup, so finished items stay open.
+  const keep = (how: string) =>
+    opts.unattended
+      ? []
+      : [
+          `When something done in this conversation finishes or changes an open item, ${how} before you stop, without being asked,`,
+          'and say what you changed. The person often ends a conversation without asking for it.',
+        ]
   const opening = `This conversation was started from Hopper, for the project ${key}.`
   // A registry project's open file belongs to its meta repo, which has its own planning rules.
   if (meta) {
@@ -41,6 +50,7 @@ export function hopperPrompt(
       '(which sections items go under, moving finished items to _done.md, dates, the planning check).',
       'When the person asks you to file, add or capture something, add it there and say what you added.',
       "If the open file doesn't exist yet, ask before creating it.",
+      ...keep('update the open file under those rules'),
       ...guide,
       ...talk,
     ].join(' ')
@@ -51,6 +61,7 @@ export function hopperPrompt(
     `Its open items live in ${openFile}, one per line as "- [ ] **Title** — detail", under the file's first "## " heading.`,
     'When the person asks you to file, add or capture something, add it to that file',
     `(create it with "# ${key}" and "## Open" if it is missing) and say what you added.`,
+    ...keep('update its line, or remove it when it is done,'),
     ...guide,
     ...talk,
   ].join(' ')
